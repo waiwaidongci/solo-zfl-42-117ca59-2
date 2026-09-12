@@ -1,0 +1,14 @@
+{
+  "name": "zfl-42-lacquer-workshop",
+  "version": "1.0.0",
+  "description": "小型漆线雕工坊管理：订单、材料库存与作品流转工作台",
+  "type": "module",
+  "scripts": {
+    "acceptance": "node acceptance.mjs",
+    "start": "python3 -m http.server 8080"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

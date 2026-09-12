@@ -31,12 +31,21 @@
     button.danger { background: var(--red); }
     button.violet { background: var(--violet); }
     label { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
+    .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .import-btn { display: inline-block; background: var(--violet); color: #fff; padding: 9px 11px; border-radius: 6px; cursor: pointer; font-size: 14px; min-height: 38px; }
+    .import-btn input { display: none; }
+    #dataMsg { font-size: 13px; color: var(--muted); width: 100%; text-align: right; }
+    #dataMsg.error { color: var(--red); }
     .top { display: grid; grid-template-columns: 360px 1fr; gap: 18px; align-items: start; }
     .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
     .panel h2 { margin: 0 0 12px; font-size: 17px; }
     form { display: grid; gap: 10px; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .toolbar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .toolbar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; align-items: end; }
+    .toolbar5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; align-items: end; }
+    .check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); min-height: 38px; }
+    .check input { width: auto; }
     .lists { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
     .mini { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #fbfdfb; min-height: 118px; }
     .mini h3 { margin: 0 0 8px; font-size: 14px; }
@@ -51,10 +60,35 @@
     dialog::backdrop { background: rgba(0, 0, 0, 0.3); }
     .dialog-body { padding: 16px; display: grid; gap: 10px; }
     .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 9px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; white-space: nowrap; }
+    tr.overdue td { background: #faf1f1; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; white-space: nowrap; }
+    .badge.p-high { background: #f6e3e3; color: var(--red); }
+    .badge.p-mid { background: #f6eedd; color: var(--amber); }
+    .badge.p-low { background: #e7ebf0; color: var(--muted); }
+    .badge.overdue { background: var(--red); color: #fff; margin-left: 6px; }
+    .banner { display: none; border: 1px solid var(--red); background: #faf1f1; color: var(--red); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px; line-height: 1.6; }
+    .banner.show { display: block; }
+    .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .row-actions button { font-size: 12px; padding: 6px 8px; min-height: 30px; }
+    .issue-box { display: grid; grid-template-columns: 1fr 76px; gap: 6px; min-width: 220px; }
+    .issue-box .qtyInput { padding: 6px 8px; }
+    .issue-box select { padding: 6px 8px; font-size: 12px; }
+    .issue-box .btns { grid-column: 1 / -1; display: flex; gap: 6px; }
+    .issue-box .btns button { flex: 1; font-size: 12px; padding: 6px 8px; min-height: 30px; }
+    .stock-num { font-weight: 700; }
+    .stock-num.low { color: var(--amber); }
+    .error-text { color: var(--red); font-size: 13px; min-height: 18px; margin-top: 8px; }
+    .txn-out { color: var(--red); font-weight: 600; }
+    .txn-in { color: var(--teal); font-weight: 600; }
+    .form-block { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fbfdfb; margin-bottom: 12px; }
+    .form-block h3 { margin: 0 0 10px; font-size: 14px; }
     @media (max-width: 980px) {
       header { display: block; padding: 18px; }
       main { padding: 16px; }
-      .top, .lists, .toolbar { grid-template-columns: 1fr; }
+      .top, .lists, .toolbar, .toolbar5, .grid4 { grid-template-columns: 1fr; }
       .grid2 { grid-template-columns: 1fr; }
     }
   </style>
@@ -63,12 +97,82 @@
   <header>
     <div>
       <h1>小型漆线雕工坊管理</h1>
-      <div class="sub">贴线、阴干、上金粉、待交付的作品流转与缺陷追踪</div>
+      <div class="sub">订单、材料库存与作品流转一体工作台 · 数据保存在本机浏览器</div>
     </div>
-    <button id="exportBtn" class="secondary">导出 JSON</button>
+    <div class="header-actions">
+      <button id="exportBtn" class="secondary">导出 JSON</button>
+      <label class="import-btn">恢复数据<input type="file" id="importInput" accept="application/json,.json"></label>
+      <div id="dataMsg"></div>
+    </div>
   </header>
 
   <main>
+    <section class="panel" id="ordersPanel">
+      <h2>订单管理</h2>
+      <div id="overdueBanner" class="banner"></div>
+      <form id="orderForm" class="form-block">
+        <h3>新建订单</h3>
+        <div class="grid4">
+          <label>客户<input name="customer" required placeholder="鹭岛茶室"></label>
+          <label>关联作品<select name="workId" required></select></label>
+          <label>交期<input name="due" type="date" required></label>
+          <label>优先级<select name="priority"><option>高</option><option selected>中</option><option>低</option></select></label>
+        </div>
+        <label>备注<input name="note" placeholder="包装、刻字等要求"></label>
+        <button type="submit">创建订单</button>
+      </form>
+      <div class="toolbar5 toolbar">
+        <label>客户筛选<input id="orderCustomerFilter" placeholder="输入客户名"></label>
+        <label>优先级筛选<select id="orderPriorityFilter"><option value="">全部优先级</option><option>高</option><option>中</option><option>低</option></select></label>
+        <label>状态筛选<select id="orderStatusFilter"><option value="">全部状态</option><option>待生产</option><option>制作中</option><option>已交付</option></select></label>
+        <label class="check"><input type="checkbox" id="orderOverdueOnly">仅看超期</label>
+        <button id="clearOrderFilters" class="secondary" type="button">清空筛选</button>
+      </div>
+      <table id="ordersTable">
+        <thead><tr><th>客户</th><th>关联作品</th><th>交期</th><th>优先级</th><th>状态</th><th>备注</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel" id="materialsPanel">
+      <h2>材料库存</h2>
+      <form id="materialForm" class="form-block">
+        <h3>登记材料</h3>
+        <div class="grid4">
+          <label>材料名称<input name="name" required placeholder="金粉"></label>
+          <label>类别<input name="category" required list="categoryList" placeholder="漆线 / 金粉 / 胎体"><datalist id="categoryList"></datalist></label>
+          <label>单位<input name="unit" required placeholder="克 / 卷 / 件"></label>
+          <label>初始库存<input name="stock" type="number" min="0" step="any" required value="0"></label>
+        </div>
+        <button type="submit">登记入库</button>
+      </form>
+      <div class="toolbar">
+        <label>类别筛选<select id="materialCategoryFilter"><option value="">全部类别</option></select></label>
+        <label>名称筛选<input id="materialNameFilter" placeholder="输入材料名"></label>
+        <span></span>
+        <button id="clearMaterialFilters" class="secondary" type="button">清空筛选</button>
+      </div>
+      <table id="materialsTable">
+        <thead><tr><th>材料</th><th>类别</th><th>单位</th><th>当前余量</th><th>发料 / 退料</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="stockError" class="error-text" role="alert"></div>
+    </section>
+
+    <section class="panel" id="txnPanel">
+      <h2>库存流水</h2>
+      <div class="toolbar">
+        <label>类型筛选<select id="txnTypeFilter"><option value="">全部类型</option><option>发料</option><option>退料</option></select></label>
+        <label>材料筛选<input id="txnMaterialFilter" placeholder="输入材料名"></label>
+        <span></span>
+        <button id="clearTxnFilters" class="secondary" type="button">清空筛选</button>
+      </div>
+      <table id="txnTable">
+        <thead><tr><th>时间</th><th>材料</th><th>类型</th><th>数量</th><th>余量变化</th><th>关联订单</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
     <section class="top">
       <form id="workForm" class="panel">
         <h2>新增作品</h2>
@@ -136,14 +240,42 @@
 
   <script>
     const statuses = ["贴线中", "待阴干", "上金粉", "待交付"];
-    const storageKey = "zfl42Works";
+    const orderStatuses = ["待生产", "制作中", "已交付"];
+    const priorities = ["高", "中", "低"];
+    const keys = { works: "zfl42Works", orders: "zfl42Orders", materials: "zfl42Materials", txns: "zfl42Txns" };
     const today = new Date().toISOString().slice(0, 10);
+    const offsetDay = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
     const seed = [
       { id: crypto.randomUUID(), base: "木胎香盒", theme: "海水江崖", line: "细线", progress: 70, dryDate: today, gold: "未处理", defect: "", delivery: "2026-06-26", status: "待阴干", note: "边线需保持低浮雕感", logs: ["创建作品"] },
       { id: crypto.randomUUID(), base: "脱胎盘", theme: "折枝梅", line: "混合线", progress: 95, dryDate: "2026-06-20", gold: "试扫粉", defect: "左侧枝干翘线", delivery: "2026-06-23", status: "上金粉", note: "客户要求金粉偏暗", logs: ["创建作品", "记录翘线"] },
       { id: crypto.randomUUID(), base: "竹胎笔筒", theme: "云雷纹", line: "中线", progress: 40, dryDate: "2026-06-24", gold: "未处理", defect: "", delivery: "2026-06-30", status: "贴线中", note: "", logs: ["创建作品"] }
     ];
-    let works = JSON.parse(localStorage.getItem(storageKey) || "null") || seed;
+    const seedMaterials = [
+      { id: crypto.randomUUID(), name: "细漆线", category: "漆线", unit: "卷", stock: 12 },
+      { id: crypto.randomUUID(), name: "粗漆线", category: "漆线", unit: "卷", stock: 6 },
+      { id: crypto.randomUUID(), name: "金粉", category: "金粉", unit: "克", stock: 250 },
+      { id: crypto.randomUUID(), name: "木胎", category: "胎体", unit: "件", stock: 8 },
+      { id: crypto.randomUUID(), name: "透明大漆", category: "涂料", unit: "瓶", stock: 5 }
+    ];
+
+    function load(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch { return fallback; }
+    }
+
+    let works = load(keys.works, seed);
+    let materials = load(keys.materials, seedMaterials);
+    let orders = load(keys.orders, null);
+    let txns = load(keys.txns, []);
+    if (!orders) {
+      orders = [
+        { id: crypto.randomUUID(), customer: "鹭岛茶室", workId: works[0].id, due: offsetDay(-3), priority: "高", status: "制作中", note: "配茶席香盒一批", createdAt: offsetDay(-10) },
+        { id: crypto.randomUUID(), customer: "开元寺结缘部", workId: works[1].id, due: offsetDay(14), priority: "中", status: "待生产", note: "", createdAt: offsetDay(-2) }
+      ];
+    }
     let activeId = null;
 
     const form = document.querySelector("#workForm");
@@ -152,15 +284,222 @@
     const themeFilter = document.querySelector("#themeFilter");
     const sortMode = document.querySelector("#sortMode");
     const dialog = document.querySelector("#detailDialog");
+    const orderForm = document.querySelector("#orderForm");
+    const materialForm = document.querySelector("#materialForm");
+    const orderCustomerFilter = document.querySelector("#orderCustomerFilter");
+    const orderPriorityFilter = document.querySelector("#orderPriorityFilter");
+    const orderStatusFilter = document.querySelector("#orderStatusFilter");
+    const orderOverdueOnly = document.querySelector("#orderOverdueOnly");
+    const materialCategoryFilter = document.querySelector("#materialCategoryFilter");
+    const materialNameFilter = document.querySelector("#materialNameFilter");
+    const txnTypeFilter = document.querySelector("#txnTypeFilter");
+    const txnMaterialFilter = document.querySelector("#txnMaterialFilter");
+    const stockError = document.querySelector("#stockError");
+    const dataMsg = document.querySelector("#dataMsg");
 
     form.dryDate.value = today;
-    form.delivery.value = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+    form.delivery.value = offsetDay(5);
+    orderForm.due.value = offsetDay(7);
     statusFilter.innerHTML = `<option value="">全部状态</option>` + statuses.map(s => `<option>${s}</option>`).join("");
 
     function save() {
-      localStorage.setItem(storageKey, JSON.stringify(works));
+      localStorage.setItem(keys.works, JSON.stringify(works));
+      localStorage.setItem(keys.orders, JSON.stringify(orders));
+      localStorage.setItem(keys.materials, JSON.stringify(materials));
+      localStorage.setItem(keys.txns, JSON.stringify(txns));
     }
 
+    function workLabel(id) {
+      const w = works.find(item => item.id === id);
+      return w ? `${w.theme} · ${w.base}` : "（作品已删除）";
+    }
+
+    function isOverdue(o) {
+      return o.status !== "已交付" && o.due < today;
+    }
+
+    /* ---------- 订单 ---------- */
+    function filteredOrders() {
+      const kw = orderCustomerFilter.value.trim();
+      return orders
+        .filter(o => !kw || o.customer.includes(kw))
+        .filter(o => !orderPriorityFilter.value || o.priority === orderPriorityFilter.value)
+        .filter(o => !orderStatusFilter.value || o.status === orderStatusFilter.value)
+        .filter(o => !orderOverdueOnly.checked || isOverdue(o))
+        .sort((a, b) => a.due.localeCompare(b.due));
+    }
+
+    function renderOrders() {
+      const overdue = orders.filter(isOverdue);
+      const banner = document.querySelector("#overdueBanner");
+      if (overdue.length) {
+        banner.classList.add("show");
+        banner.innerHTML = `⚠ 超期订单 ${overdue.length} 笔：` + overdue
+          .map(o => `${o.customer}（交期 ${o.due}，${o.status}）`).join("；");
+      } else {
+        banner.classList.remove("show");
+        banner.textContent = "";
+      }
+      const list = filteredOrders();
+      const tbody = document.querySelector("#ordersTable tbody");
+      tbody.innerHTML = list.length ? list.map(o => `
+        <tr data-order-id="${o.id}" class="${isOverdue(o) ? "overdue" : ""}">
+          <td><b>${o.customer}</b></td>
+          <td>${workLabel(o.workId)}</td>
+          <td>${o.due}${isOverdue(o) ? `<span class="badge overdue">超期</span>` : ""}</td>
+          <td><span class="badge ${o.priority === "高" ? "p-high" : o.priority === "中" ? "p-mid" : "p-low"}">${o.priority}</span></td>
+          <td>${o.status}</td>
+          <td class="meta">${o.note || "—"}</td>
+          <td><div class="row-actions">
+            ${orderStatuses.filter(s => s !== o.status).map(s => `<button class="${s === "已交付" ? "" : "secondary"}" onclick="setOrderStatus('${o.id}', '${s}')">${s}</button>`).join("")}
+            <button class="danger" onclick="deleteOrder('${o.id}')">删除</button>
+          </div></td>
+        </tr>`).join("") : `<tr><td colspan="7"><div class="empty">暂无订单</div></td></tr>`;
+    }
+
+    function setOrderStatus(id, status) {
+      const o = orders.find(item => item.id === id);
+      if (!o) return;
+      o.status = status;
+      save();
+      render();
+    }
+
+    function deleteOrder(id) {
+      const o = orders.find(item => item.id === id);
+      if (!o || !confirm(`删除订单「${o.customer}」？`)) return;
+      orders = orders.filter(item => item.id !== id);
+      save();
+      render();
+    }
+
+    /* ---------- 材料库存与流水 ---------- */
+    function recordTxn(material, type, qty, before, after, orderId) {
+      const order = orders.find(o => o.id === orderId);
+      txns.unshift({
+        id: crypto.randomUUID(),
+        time: new Date().toLocaleString(),
+        materialId: material.id,
+        materialName: material.name,
+        category: material.category,
+        type, qty, unit: material.unit, before, after,
+        orderLabel: order ? `${order.customer}（${order.due}）` : ""
+      });
+    }
+
+    function issueMaterial(id) {
+      const m = materials.find(item => item.id === id);
+      const row = document.querySelector(`tr[data-material-id="${id}"]`);
+      const qty = Number(row.querySelector(".qtyInput").value);
+      const orderId = row.querySelector(".orderSelect").value;
+      if (!qty || qty <= 0) {
+        stockError.textContent = `请输入大于 0 的数量`;
+        return;
+      }
+      if (qty > m.stock) {
+        stockError.textContent = `库存不足：${m.name} 余量 ${m.stock}${m.unit}，无法发料 ${qty}${m.unit}`;
+        return;
+      }
+      const before = m.stock;
+      m.stock = +(m.stock - qty).toFixed(4);
+      recordTxn(m, "发料", qty, before, m.stock, orderId);
+      stockError.textContent = "";
+      save();
+      render();
+    }
+
+    function returnMaterial(id) {
+      const m = materials.find(item => item.id === id);
+      const row = document.querySelector(`tr[data-material-id="${id}"]`);
+      const qty = Number(row.querySelector(".qtyInput").value);
+      if (!qty || qty <= 0) {
+        stockError.textContent = `请输入大于 0 的数量`;
+        return;
+      }
+      const before = m.stock;
+      m.stock = +(m.stock + qty).toFixed(4);
+      recordTxn(m, "退料", qty, before, m.stock, "");
+      stockError.textContent = "";
+      save();
+      render();
+    }
+
+    function deleteMaterial(id) {
+      const m = materials.find(item => item.id === id);
+      if (!m || !confirm(`删除材料「${m.name}」？流水记录会保留。`)) return;
+      materials = materials.filter(item => item.id !== id);
+      save();
+      render();
+    }
+
+    function filteredMaterials() {
+      const kw = materialNameFilter.value.trim();
+      return materials
+        .filter(m => !materialCategoryFilter.value || m.category === materialCategoryFilter.value)
+        .filter(m => !kw || m.name.includes(kw));
+    }
+
+    function renderMaterials() {
+      const openOrders = orders.filter(o => o.status !== "已交付");
+      const tbody = document.querySelector("#materialsTable tbody");
+      const list = filteredMaterials();
+      tbody.innerHTML = list.length ? list.map(m => `
+        <tr data-material-id="${m.id}">
+          <td><b>${m.name}</b></td>
+          <td>${m.category}</td>
+          <td>${m.unit}</td>
+          <td class="stockCell"><span class="stock-num ${m.stock <= 2 ? "low" : ""}">${m.stock}</span> ${m.unit}</td>
+          <td><div class="issue-box">
+            <select class="orderSelect" title="发料关联订单（可选）">
+              <option value="">不关联订单</option>
+              ${openOrders.map(o => `<option value="${o.id}">${o.customer} · ${o.due}</option>`).join("")}
+            </select>
+            <input class="qtyInput" type="number" min="0" step="any" value="1" title="数量">
+            <div class="btns">
+              <button class="issueBtn" onclick="issueMaterial('${m.id}')">发料</button>
+              <button class="returnBtn secondary" onclick="returnMaterial('${m.id}')">退料</button>
+            </div>
+          </div></td>
+          <td><button class="danger row-actions" onclick="deleteMaterial('${m.id}')">删除</button></td>
+        </tr>`).join("") : `<tr><td colspan="6"><div class="empty">暂无材料</div></td></tr>`;
+    }
+
+    function renderTxns() {
+      const kw = txnMaterialFilter.value.trim();
+      const list = txns
+        .filter(t => !txnTypeFilter.value || t.type === txnTypeFilter.value)
+        .filter(t => !kw || t.materialName.includes(kw));
+      const tbody = document.querySelector("#txnTable tbody");
+      tbody.innerHTML = list.length ? list.map(t => `
+        <tr data-txn-id="${t.id}">
+          <td class="meta">${t.time}</td>
+          <td>${t.materialName}<span class="meta">（${t.category}）</span></td>
+          <td class="${t.type === "发料" ? "txn-out" : "txn-in"}">${t.type}</td>
+          <td>${t.qty} ${t.unit}</td>
+          <td>${t.before} → <b>${t.after}</b> ${t.unit}</td>
+          <td class="meta">${t.orderLabel || "—"}</td>
+        </tr>`).join("") : `<tr><td colspan="6"><div class="empty">暂无流水</div></td></tr>`;
+    }
+
+    /* ---------- 筛选下拉动态选项 ---------- */
+    function syncSelectOptions(select, values, head) {
+      const prev = select.value;
+      select.innerHTML = head + values.map(v => `<option>${v}</option>`).join("");
+      select.value = [...select.options].some(o => o.value === prev) ? prev : "";
+    }
+
+    function syncDynamicOptions() {
+      const prevWork = orderForm.workId.value;
+      orderForm.workId.innerHTML = works.length
+        ? works.map(w => `<option value="${w.id}">${w.theme} · ${w.base}</option>`).join("")
+        : `<option value="" disabled>请先在下方新增作品</option>`;
+      orderForm.workId.value = [...orderForm.workId.options].some(o => o.value === prevWork) ? prevWork : orderForm.workId.options[0].value;
+      const categories = [...new Set(materials.map(m => m.category))];
+      document.querySelector("#categoryList").innerHTML = categories.map(c => `<option value="${c}">`).join("");
+      syncSelectOptions(materialCategoryFilter, categories, `<option value="">全部类别</option>`);
+    }
+
+    /* ---------- 作品看板（原有功能） ---------- */
     function filtered() {
       return works
         .filter(w => !statusFilter.value || w.status === statusFilter.value)
@@ -231,10 +570,15 @@
     }
 
     function render() {
+      syncDynamicOptions();
+      renderOrders();
+      renderMaterials();
+      renderTxns();
       renderSummaries();
       renderBoard();
     }
 
+    /* ---------- 表单提交 ---------- */
     form.addEventListener("submit", event => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(form).entries());
@@ -254,11 +598,99 @@
       });
       form.reset();
       form.dryDate.value = today;
-      form.delivery.value = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+      form.delivery.value = offsetDay(5);
       save();
       render();
     });
 
+    orderForm.addEventListener("submit", event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(orderForm).entries());
+      if (!data.workId) return;
+      orders.unshift({
+        id: crypto.randomUUID(),
+        customer: data.customer.trim(),
+        workId: data.workId,
+        due: data.due,
+        priority: data.priority,
+        status: "待生产",
+        note: data.note.trim(),
+        createdAt: today
+      });
+      orderForm.reset();
+      orderForm.due.value = offsetDay(7);
+      save();
+      render();
+    });
+
+    materialForm.addEventListener("submit", event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(materialForm).entries());
+      materials.unshift({
+        id: crypto.randomUUID(),
+        name: data.name.trim(),
+        category: data.category.trim(),
+        unit: data.unit.trim(),
+        stock: Number(data.stock) || 0
+      });
+      materialForm.reset();
+      materialForm.stock.value = 0;
+      save();
+      render();
+    });
+
+    /* ---------- 导出与恢复 ---------- */
+    document.querySelector("#exportBtn").addEventListener("click", () => {
+      const payload = {
+        app: "zfl-42",
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        works, orders, materials, transactions: txns
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "lacquer-workshop-backup.json";
+      link.click();
+      URL.revokeObjectURL(link.href);
+      dataMsg.classList.remove("error");
+      dataMsg.textContent = "已导出备份文件";
+    });
+
+    document.querySelector("#importInput").addEventListener("change", async event => {
+      const file = event.target.files[0];
+      event.target.value = "";
+      if (!file) return;
+      let json;
+      try {
+        json = JSON.parse(await file.text());
+      } catch {
+        dataMsg.classList.add("error");
+        dataMsg.textContent = "恢复失败：文件不是有效的 JSON";
+        return;
+      }
+      const data = Array.isArray(json) ? { works: json } : json;
+      const picked = {};
+      for (const k of ["works", "orders", "materials", "transactions"]) {
+        if (data && Array.isArray(data[k])) picked[k] = data[k];
+      }
+      if (!Object.keys(picked).length) {
+        dataMsg.classList.add("error");
+        dataMsg.textContent = "恢复失败：文件中没有可识别的数据";
+        return;
+      }
+      if (!confirm("恢复将覆盖当前浏览器中的全部数据，确定继续？")) return;
+      if (picked.works) works = picked.works;
+      if (picked.orders) orders = picked.orders;
+      if (picked.materials) materials = picked.materials;
+      if (picked.transactions) txns = picked.transactions;
+      save();
+      render();
+      dataMsg.classList.remove("error");
+      dataMsg.textContent = `已恢复：作品 ${works.length}、订单 ${orders.length}、材料 ${materials.length}、流水 ${txns.length}`;
+    });
+
+    /* ---------- 筛选与弹窗事件 ---------- */
     document.querySelector("#saveDefect").addEventListener("click", () => {
       recordDefect(activeId, document.querySelector("#defectInput").value.trim());
       showDetail(activeId);
@@ -269,19 +701,36 @@
       statusFilter.value = "";
       render();
     });
-    [statusFilter, themeFilter, sortMode].forEach(el => el.addEventListener("input", render));
-    document.querySelector("#exportBtn").addEventListener("click", () => {
-      const blob = new Blob([JSON.stringify(works, null, 2)], { type: "application/json" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "lacquer-thread-works.json";
-      link.click();
-      URL.revokeObjectURL(link.href);
+    document.querySelector("#clearOrderFilters").addEventListener("click", () => {
+      orderCustomerFilter.value = "";
+      orderPriorityFilter.value = "";
+      orderStatusFilter.value = "";
+      orderOverdueOnly.checked = false;
+      render();
     });
+    document.querySelector("#clearMaterialFilters").addEventListener("click", () => {
+      materialCategoryFilter.value = "";
+      materialNameFilter.value = "";
+      render();
+    });
+    document.querySelector("#clearTxnFilters").addEventListener("click", () => {
+      txnTypeFilter.value = "";
+      txnMaterialFilter.value = "";
+      render();
+    });
+    [statusFilter, themeFilter, sortMode].forEach(el => el.addEventListener("input", render));
+    [orderCustomerFilter, orderPriorityFilter, orderStatusFilter, orderOverdueOnly].forEach(el => el.addEventListener("input", render));
+    [materialCategoryFilter, materialNameFilter].forEach(el => el.addEventListener("input", render));
+    [txnTypeFilter, txnMaterialFilter].forEach(el => el.addEventListener("input", render));
 
     window.updateStatus = updateStatus;
     window.recordDefect = recordDefect;
     window.showDetail = showDetail;
+    window.setOrderStatus = setOrderStatus;
+    window.deleteOrder = deleteOrder;
+    window.issueMaterial = issueMaterial;
+    window.returnMaterial = returnMaterial;
+    window.deleteMaterial = deleteMaterial;
     save();
     render();
   </script>
