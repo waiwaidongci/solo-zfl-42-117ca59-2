@@ -685,13 +685,13 @@
         dataMsg.textContent = "恢复失败：文件中没有可识别的数据";
         return;
       }
-      // 关联校验：以恢复后的有效数据为准（文件未包含的部分沿用当前数据）。
-      // 订单必须引用存在的作品，流水必须引用存在的材料；任一失效则整份拒绝，不改现有数据。
+      // 字段语义：缺失 = 沿用当前数据；显式空数组 = 清空该集合。
+      // 关联校验以恢复后的有效数据为准；任一失效则整份拒绝，不改现有数据。
       const effective = {
-        works: picked.works || works,
-        orders: picked.orders || orders,
-        materials: picked.materials || materials,
-        transactions: picked.transactions || txns
+        works: "works" in picked ? picked.works : works,
+        orders: "orders" in picked ? picked.orders : orders,
+        materials: "materials" in picked ? picked.materials : materials,
+        transactions: "transactions" in picked ? picked.transactions : txns
       };
       const workIds = new Set(effective.works.map(w => w && w.id));
       const materialIds = new Set(effective.materials.map(m => m && m.id));
@@ -706,10 +706,10 @@
         return;
       }
       if (!confirm("恢复将覆盖当前浏览器中的全部数据，确定继续？")) return;
-      if (picked.works) works = picked.works;
-      if (picked.orders) orders = picked.orders;
-      if (picked.materials) materials = picked.materials;
-      if (picked.transactions) txns = picked.transactions;
+      if ("works" in picked) works = picked.works;
+      if ("orders" in picked) orders = picked.orders;
+      if ("materials" in picked) materials = picked.materials;
+      if ("transactions" in picked) txns = picked.transactions;
       save();
       render();
       dataMsg.classList.remove("error");

@@ -182,6 +182,32 @@ try {
   await page.setInputFiles("#importInput", backupPath);
   await page.waitForFunction(() => document.querySelector("#dataMsg").textContent.includes("已恢复"));
   check("恢复校验：正常备份仍可恢复", (await orderRow("验收客户甲").count()) === 1 && (await stockOf("金粉")) === 220);
+
+  // 13. 字段缺失 vs 显式空数组
+  const okImport = async (content, marker) => {
+    await page.setInputFiles("#importInput", { name: "case.json", mimeType: "application/json", buffer: Buffer.from(content) });
+    await page.waitForFunction(m => document.querySelector("#dataMsg").textContent.includes(m), marker);
+  };
+  const orderCount = () => page.locator("#ordersTable tbody tr[data-order-id]").count();
+  const materialCount = () => page.locator("#materialsTable tbody tr[data-material-id]").count();
+
+  // 字段缺失：只含作品的文件 → 订单/材料/流水沿用当前数据
+  await okImport(JSON.stringify({ works: backup.works }), "已恢复");
+  check("恢复区分：缺失字段沿用当前数据",
+    (await orderCount()) === 4 && (await stockOf("金粉")) === 220 && (await txnCount()) === 2);
+
+  // 显式空数组：orders: [] → 清空订单，其余按文件恢复
+  await okImport(JSON.stringify({ ...backup, orders: [] }), "订单 0");
+  check("恢复区分：空订单数组被应用", (await orderCount()) === 0 && (await materialCount()) === 5 && (await txnCount()) === 2);
+
+  // 显式空数组：materials/transactions: [] → 清空材料与流水，订单按文件恢复
+  await okImport(JSON.stringify({ ...backup, materials: [], transactions: [] }), "材料 0");
+  check("恢复区分：空材料数组被应用", (await materialCount()) === 0 && (await txnCount()) === 0 && (await orderCount()) === 4);
+
+  // 完整备份：全部找回
+  await page.setInputFiles("#importInput", backupPath);
+  await page.waitForFunction(() => document.querySelector("#dataMsg").textContent.includes("已恢复"));
+  check("完整备份：全部数据找回", (await orderCount()) === 4 && (await stockOf("金粉")) === 220 && (await txnCount()) === 2);
 } catch (err) {
   check("执行中断", false, err.message);
 } finally {
