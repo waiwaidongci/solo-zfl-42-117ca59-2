@@ -204,10 +204,31 @@ try {
   await okImport(JSON.stringify({ ...backup, materials: [], transactions: [] }), "材料 0");
   check("恢复区分：空材料数组被应用", (await materialCount()) === 0 && (await txnCount()) === 0 && (await orderCount()) === 4);
 
-  // 完整备份：全部找回
+  // 完整备份：全部找回（等待语用终态独有文本，避免被上一条提示误命中）
   await page.setInputFiles("#importInput", backupPath);
-  await page.waitForFunction(() => document.querySelector("#dataMsg").textContent.includes("已恢复"));
+  await page.waitForFunction(() => document.querySelector("#dataMsg").textContent.includes("流水 2"));
   check("完整备份：全部数据找回", (await orderCount()) === 4 && (await stockOf("金粉")) === 220 && (await txnCount()) === 2);
+
+  // 14. 字段类型校验：null / 非数组 → 整份拒绝且现有数据不动
+  const beforeTypeBad = await storageSnapshot();
+  await rejectImport(JSON.stringify({ ...backup, orders: null }), "「订单」");
+  check("类型校验：订单字段为 null 被拒绝", await msgHasError());
+  await rejectImport(JSON.stringify({ ...backup, materials: "文本" }), "「材料」");
+  check("类型校验：材料字段为非数组被拒绝", await msgHasError());
+  await rejectImport(JSON.stringify({ ...backup, transactions: {} }), "「流水」");
+  check("类型校验：流水字段为对象被拒绝", await msgHasError());
+  check("类型校验：拒绝后现有数据未改动", (await storageSnapshot()) === beforeTypeBad);
+
+  // 15. 类型校验之后：空数组、字段缺失、正常恢复语义不受影响
+  await okImport(JSON.stringify({ ...backup, orders: [] }), "订单 0");
+  check("类型校验后：空数组仍可清空", (await orderCount()) === 0);
+  const plusWork = [...backup.works, { ...backup.works[0], id: "extra-work-1", theme: "附加作品" }];
+  await okImport(JSON.stringify({ works: plusWork }), "作品 4");
+  check("类型校验后：缺失字段仍沿用",
+    (await orderCount()) === 0 && (await stockOf("金粉")) === 220 && (await page.locator("#board article.item").count()) === 4);
+  await page.setInputFiles("#importInput", backupPath);
+  await page.waitForFunction(() => document.querySelector("#dataMsg").textContent.includes("订单 4"));
+  check("类型校验后：正常备份仍可恢复", (await orderCount()) === 4 && (await stockOf("金粉")) === 220 && (await txnCount()) === 2);
 } catch (err) {
   check("执行中断", false, err.message);
 } finally {

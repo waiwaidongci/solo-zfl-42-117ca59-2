@@ -676,9 +676,20 @@
         return;
       }
       const data = Array.isArray(json) ? { works: json } : json;
+      const fieldNames = { works: "作品", orders: "订单", materials: "材料", transactions: "流水" };
       const picked = {};
-      for (const k of ["works", "orders", "materials", "transactions"]) {
-        if (data && Array.isArray(data[k])) picked[k] = data[k];
+      const badType = [];
+      if (data && typeof data === "object") {
+        for (const k of Object.keys(fieldNames)) {
+          if (!(k in data)) continue; // 字段缺失：沿用当前数据
+          if (Array.isArray(data[k])) picked[k] = data[k];
+          else badType.push(fieldNames[k]); // null 或非数组：整份拒绝
+        }
+      }
+      if (badType.length) {
+        dataMsg.classList.add("error");
+        dataMsg.textContent = `恢复失败：字段「${badType.join("」「")}」的值不是数组（缺失请省略该字段，清空请使用空数组 []）。现有数据未改动`;
+        return;
       }
       if (!Object.keys(picked).length) {
         dataMsg.classList.add("error");
