@@ -426,8 +426,14 @@
 
     function deleteMaterial(id) {
       const m = materials.find(item => item.id === id);
-      if (!m || !confirm(`删除材料「${m.name}」？流水记录会保留。`)) return;
+      if (!m) return;
+      if (txns.some(t => t.materialId === id)) {
+        stockError.textContent = `无法删除：${m.name} 已有流水记录，为保证库存可追溯不允许删除`;
+        return;
+      }
+      if (!confirm(`删除材料「${m.name}」？`)) return;
       materials = materials.filter(item => item.id !== id);
+      stockError.textContent = "";
       save();
       render();
     }
@@ -677,6 +683,26 @@
       if (!Object.keys(picked).length) {
         dataMsg.classList.add("error");
         dataMsg.textContent = "恢复失败：文件中没有可识别的数据";
+        return;
+      }
+      // 关联校验：以恢复后的有效数据为准（文件未包含的部分沿用当前数据）。
+      // 订单必须引用存在的作品，流水必须引用存在的材料；任一失效则整份拒绝，不改现有数据。
+      const effective = {
+        works: picked.works || works,
+        orders: picked.orders || orders,
+        materials: picked.materials || materials,
+        transactions: picked.transactions || txns
+      };
+      const workIds = new Set(effective.works.map(w => w && w.id));
+      const materialIds = new Set(effective.materials.map(m => m && m.id));
+      const badOrders = effective.orders.filter(o => !o || !workIds.has(o.workId));
+      const badTxns = effective.transactions.filter(t => !t || !materialIds.has(t.materialId));
+      if (badOrders.length || badTxns.length) {
+        const problems = [];
+        if (badOrders.length) problems.push(`${badOrders.length} 笔订单引用了不存在的作品（${badOrders.slice(0, 3).map(o => (o && o.customer) || "未命名订单").join("、")}）`);
+        if (badTxns.length) problems.push(`${badTxns.length} 条流水引用了不存在的材料（${badTxns.slice(0, 3).map(t => (t && t.materialName) || "未知材料").join("、")}）`);
+        dataMsg.classList.add("error");
+        dataMsg.textContent = `恢复失败：${problems.join("；")}。现有数据未改动`;
         return;
       }
       if (!confirm("恢复将覆盖当前浏览器中的全部数据，确定继续？")) return;

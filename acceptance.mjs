@@ -38,6 +38,7 @@ const baseURL = `http://127.0.0.1:${server.address().port}`;
 const offsetDay = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const browser = await chromium.launch();
 const page = await browser.newPage();
+page.setDefaultTimeout(10000);
 page.on("dialog", d => d.accept()); // 自动确认 confirm（删除、恢复）
 
 const materialRow = name => page.locator("#materialsTable tbody tr", { hasText: name }).first();
@@ -142,6 +143,45 @@ try {
     (await orderRow("验收客户甲").count()) === 1 && (await stockOf("金粉")) === 220);
   await page.reload();
   check("恢复后刷新：数据依然保留", (await orderRow("验收客户甲").count()) === 1 && (await stockOf("金粉")) === 220);
+
+  // 10. 删除拦截：有流水的材料不能删除（保证任何导出都可恢复）
+  await materialRow("金粉").locator("button.danger").click();
+  await page.waitForFunction(() => document.querySelector("#stockError").textContent.includes("无法删除"));
+  check("删除拦截：有流水的材料不能删除", (await materialRow("金粉").count()) === 1);
+
+  // 11. 恢复校验：关联失效 / 坏 JSON / 不可识别文件 → 整份拒绝且现有数据不动
+  const storageSnapshot = () => page.evaluate(
+    ks => JSON.stringify(ks.map(k => localStorage.getItem(k))),
+    ["zfl42Works", "zfl42Orders", "zfl42Materials", "zfl42Txns"]);
+  const beforeBad = await storageSnapshot();
+  const rejectImport = async (content, marker) => {
+    await page.setInputFiles("#importInput", { name: "case.json", mimeType: "application/json", buffer: Buffer.from(content) });
+    await page.waitForFunction(m => document.querySelector("#dataMsg").textContent.includes(m), marker);
+  };
+  const msgHasError = () => page.locator("#dataMsg").getAttribute("class").then(c => c.includes("error"));
+
+  const brokenWork = JSON.parse(JSON.stringify(backup));
+  brokenWork.orders[0].workId = "missing-work-id";
+  await rejectImport(JSON.stringify(brokenWork), "不存在的作品");
+  check("恢复校验：订单引用失效作品被拒绝", await msgHasError());
+
+  const brokenMaterial = JSON.parse(JSON.stringify(backup));
+  brokenMaterial.transactions[0].materialId = "missing-material-id";
+  await rejectImport(JSON.stringify(brokenMaterial), "不存在的材料");
+  check("恢复校验：流水引用失效材料被拒绝", await msgHasError());
+
+  await rejectImport("这不是 JSON {{{", "不是有效的 JSON");
+  check("恢复校验：坏 JSON 被拒绝", await msgHasError());
+
+  await rejectImport(JSON.stringify({ hello: "world" }), "没有可识别的数据");
+  check("恢复校验：不可识别文件被拒绝", await msgHasError());
+
+  check("恢复校验：拒绝后现有数据未改动", (await storageSnapshot()) === beforeBad);
+
+  // 12. 正常恢复仍然可用
+  await page.setInputFiles("#importInput", backupPath);
+  await page.waitForFunction(() => document.querySelector("#dataMsg").textContent.includes("已恢复"));
+  check("恢复校验：正常备份仍可恢复", (await orderRow("验收客户甲").count()) === 1 && (await stockOf("金粉")) === 220);
 } catch (err) {
   check("执行中断", false, err.message);
 } finally {
